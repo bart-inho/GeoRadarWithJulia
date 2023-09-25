@@ -7,13 +7,10 @@ const c  = 299792458.0       # speed of light           [m/s] = 1 / sqrt(mu0*eps
 const λ  = 5.0e-2              # wavelength               [m]
 const μ0 = 1.256e-6          # mangetic permeability    [N/A^2]
 const E0 = 30.0              # electric field amplitude [V/m]
-
 const Z0 = μ0 * c            # impedance of free space  [V/A]
 const ϵ0 = 1 / μ0 / c^2      # electric permittivity    [F/m]
-
 const Q_Hz0 = 1.0 * E0 / λ   # Hz source amplitude    [V/m^2]
 const τ     = 1.0 * λ / c      # Hz source duration     [s]
-
 const npml = 100              # number of PML layers
 
 struct Field # 2D field
@@ -130,7 +127,6 @@ function update_field!(field::Field, mat::Material, grid::Grid, qx::Array{Float6
     end
 end
 
-# Source functions
 function gaussian_source(Δt::Real, Q0::Real)
     return Q0 * exp(- Δt^2 / τ^2)
 end
@@ -158,7 +154,7 @@ function main()
     field = init_field(grid)
     mat = init_material(grid)
     
-    nt = 1500 # number of time steps
+    nt = 1250 # number of time steps
     t = 0.0 # time
     
     # Recorded field
