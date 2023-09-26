@@ -101,11 +101,11 @@ function update_field!(field::Field, mat::Material, grid::Grid, qx::Array{Float6
 
     # Source position
     sidx = div(grid.nx, 2)
-    sidy = Int(grid.ny - div(grid.ny, 2.5))
+    sidy = Int(grid.ny - div(grid.ny, 2))
 
     # Source on Hz
-    field.Hzx[sidx,sidy] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
-    field.Hzy[sidx,sidy] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzx[sidx,sidy+6] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzy[sidx,sidy+6] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
 
     # Solve Hz field
     for i in 2:grid.nx, j in 2:grid.ny
