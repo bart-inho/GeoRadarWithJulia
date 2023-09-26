@@ -54,7 +54,7 @@ function init_material(grid::Grid)
     σ  = ones(grid.nx, grid.ny)*1e-6
 
     # Here define material and geometry
-    σ[:, ceil(Int, grid.ny/2):ceil(Int, grid.ny/2)+5] .= 1.0e8
+    σ[ceil(Int, grid.nx/2 - 100):ceil(Int, grid.nx/2 + 100), ceil(Int, grid.ny/2):ceil(Int, grid.ny/2)+5] .= 3.5e7
 
     return Material(ϵr, μr, σ)
 end
