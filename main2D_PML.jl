@@ -2,16 +2,18 @@
 # source of the method : Perfectly Matched Layer for the Absorption of Electromagnetic Waves by Jean-Pierre Bérenger, 1993
 
 using PyPlot
+using PyCall
+tqdm = pyimport("tqdm")
 
 const c  = 299792458.0       # speed of light           [m/s] = 1 / sqrt(mu0*eps0)
-const λ  = 5.0e-2              # wavelength               [m]
+const λ  = 5.0e-2            # wavelength               [m]
 const μ0 = 1.256e-6          # mangetic permeability    [N/A^2]
 const E0 = 30.0              # electric field amplitude [V/m]
 const Z0 = μ0 * c            # impedance of free space  [V/A]
 const ϵ0 = 1 / μ0 / c^2      # electric permittivity    [F/m]
 const Q_Hz0 = 1.0 * E0 / λ   # Hz source amplitude    [V/m^2]
-const τ     = 1.0 * λ / c      # Hz source duration     [s]
-const npml = 100              # number of PML layers
+const τ     = 1.0 * λ / c    # Hz source duration     [s]
+const npml = 100             # number of PML layers
 
 struct Field # 2D field
     Ex::Array{Float64, 2}
@@ -51,10 +53,19 @@ end
 function init_material(grid::Grid)
     ϵr = ones(grid.nx, grid.ny)
     μr = ones(grid.nx, grid.ny)
-    σ  = ones(grid.nx, grid.ny)*1e-6
+    σ  = zeros(grid.nx, grid.ny)
 
-    # Here define material and geometry
-    σ[ceil(Int, grid.nx/2 - 100):ceil(Int, grid.nx/2 + 100), ceil(Int, grid.ny/2):ceil(Int, grid.ny/2)+5] .= 3.5e7
+    # Add some ice
+    ϵr[:, 250:end] .= 3.2
+    σ[:, 250:end] .= 5.0e-8
+
+    # Add some rocks
+    ϵr[:, 600:end] .= 5.0
+    σ[:, 600:end] .= 1.0e-2
+
+
+    # Here define reflective surface
+    # σ[ceil(Int, grid.nx/2 - 100):ceil(Int, grid.nx/2 + 100), 150] .= 3.5e7
 
     return Material(ϵr, μr, σ)
 end
@@ -62,7 +73,7 @@ end
 function init_grid_and_pml()
     # Grid
     xsize = 5.0 # [m]
-    ysize = 3.0 # [m]
+    ysize = 5.0 # [m]
     dx = 0.005 # grid spacing
     dy = 0.005 # grid spacing
     nx = ceil(Int, xsize / dx) + 1 # number of grid points
@@ -101,11 +112,11 @@ function update_field!(field::Field, mat::Material, grid::Grid, qx::Array{Float6
 
     # Source position
     sidx = div(grid.nx, 2)
-    sidy = Int(grid.ny - div(grid.ny, 2))
+    sidy = 155
 
     # Source on Hz
-    field.Hzx[sidx-25:sidx+25,sidy+6] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
-    field.Hzy[sidx-25:sidx+25,sidy+6] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzx[sidx-25:sidx+25,sidy] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzy[sidx-25:sidx+25,sidy] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
 
     # Solve Hz field
     for i in 2:grid.nx, j in 2:grid.ny
@@ -133,58 +144,66 @@ end
 
 function plot_loop_field(field::Field, grid::Grid, it::Int, mod::Int)
     if it % mod == 0
-        figure(1, figsize=(12, 5))
+        figure(1, figsize=(5, 12))
         # imshow(field.Ex[npml+1:end-npml, npml+1:end-npml])
         imshow(field.Ex')
         title("Ex field")
-        plot([ceil(Int, grid.nx/2-100), ceil(Int, grid.nx/2+100)], [div(grid.ny, 2), div(grid.ny, 2)], "r")
+        plot([ceil(Int, grid.nx/2-100), ceil(Int, grid.nx/2+100)], [150, 150], "r")
         clim(-0.5, 0.5)
 
-        if it == mod
+        if it == 1
             colorbar()
         end
         pause(0.000001)
     end
 end
 
+function plot_trace(trace::Array{Float64, 1}, tvec::Array{Float64, 1})
+    figure(2)
+    plot(tvec, trace)
+    title("Trace")
+    xlabel("Time [s]")
+    ylabel("Amplitude [V/m]")
+    show()
+end
+
 function main()
     
-    # Initialize grid and PML
+    # Initialize grid and PML
     grid, qx, qy = init_grid_and_pml()
     field = init_field(grid)
     mat = init_material(grid)
     
-    nt = 1250 # number of time steps
+    nt = 4000 # number of time steps
     t = 0.0 # time
     
-    # Recorded field
+    # Recorded field
     trace_rec = zeros(nt)
 
     # time vector for comparison
     tvec = 0:grid.dt:(nt-1)*grid.dt
 
-    # Main loop
-    for it in 1:nt
+    println("Start simulation...")
 
+    # Set up tqdm progress bar
+    pbar = tqdm.tqdm(1:nt, desc="Simulating", ncols=100)
+
+    # Main loop
+    for it in pbar
         # Update & plot field
         update_field!(field, mat, grid, qx, qy, t)
-        plot_loop_field(field, grid, it, 25)
+        plot_loop_field(field, grid, it, 50)
 
         # Record trace
-        trace_rec[it] = field.Ex[div(grid.nx, 2)-5, div(grid.ny, 3)-5]
+        trace_rec[it] = field.Ex[div(grid.nx, 2), 150]
 
         # Increment time
         t += grid.dt
     end
 
-    # # Plot recorded trace
-    # figure(2, figsize=(20, 5))
-    # plot(tvec, trace_rec)
-    # title("Recorded trace")
-    # xlabel("Time [s]")
-    # ylabel("Electric field [V/m]")
-    # savefig("trace_rec.png")
-    # show()
+    # Plot trace
+    plot_trace(trace_rec, tvec)
 end
+
 
 main()
