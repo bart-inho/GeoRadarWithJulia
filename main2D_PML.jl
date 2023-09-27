@@ -104,8 +104,8 @@ function update_field!(field::Field, mat::Material, grid::Grid, qx::Array{Float6
     sidy = Int(grid.ny - div(grid.ny, 2))
 
     # Source on Hz
-    field.Hzx[sidx,sidy+6] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
-    field.Hzy[sidx,sidy+6] += grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzx[sidx-25:sidx+25,sidy+6] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
+    field.Hzy[sidx-25:sidx+25,sidy+6] .+= grid.dt / μ0 * gaussian_source(t - grid.t0, Q_Hz0)
 
     # Solve Hz field
     for i in 2:grid.nx, j in 2:grid.ny
@@ -137,8 +137,8 @@ function plot_loop_field(field::Field, grid::Grid, it::Int, mod::Int)
         # imshow(field.Ex[npml+1:end-npml, npml+1:end-npml])
         imshow(field.Ex')
         title("Ex field")
-        plot([0, grid.nx-1], [div(grid.ny, 2), div(grid.ny, 2)], "r")
-        clim(-0.01, 0.01)
+        plot([ceil(Int, grid.nx/2-100), ceil(Int, grid.nx/2+100)], [div(grid.ny, 2), div(grid.ny, 2)], "r")
+        clim(-0.5, 0.5)
 
         if it == mod
             colorbar()
